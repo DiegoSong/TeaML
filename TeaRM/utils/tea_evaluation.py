@@ -20,8 +20,10 @@ def model_evaluation(score, y_true, base_score=630, method='e-freq'):
     bad_ratio = []
     bad_callback = []
     bad_precision = []
+    bad_accum_ratio = []
     total = rr['count'].sum()
     bad_cnt = rr['sum'].sum()
+    global_bad_rate = bad_cnt / total
     lift_base = rr['mean'].tolist()[-1]
     lift = []
     for i in rr.index:
@@ -29,7 +31,10 @@ def model_evaluation(score, y_true, base_score=630, method='e-freq'):
         bad_ratio.append(rr[rr.index >= i]['sum'].sum() / total)
         bad_callback.append(rr[rr.index <= i]['sum'].sum() / bad_cnt)
         bad_precision.append(rr[rr.index <= i]['sum'].sum() / rr[rr.index <= i]['count'].sum())
-        lift.append(rr[rr.index == i]['mean'].values[0] / lift_base)
+        bad_accum_ratio.append(rr[rr.index <= i]['count'].sum() / total)
+    bad_callback = np.array(bad_callback)
+    bad_accum_ratio = np.array(bad_accum_ratio)
+    lift = bad_callback / bad_accum_ratio
 
     rr['pass_ratio'] = ['%.2f'%(i*100) for i in pass_ratio]
     rr['bad_ratio'] = ['%.2f'%(i*100) for i in bad_ratio]
@@ -37,4 +42,4 @@ def model_evaluation(score, y_true, base_score=630, method='e-freq'):
     rr['bad_precision'] = ['%.2f'%(i*100) for i in bad_precision]
     rr['lift'] = ['%.2f' % i for i in lift]
     rr['mean'] = rr['mean'].apply(lambda x: '%.2f' % (x * 100))
-    return rr
+    return rr, cut

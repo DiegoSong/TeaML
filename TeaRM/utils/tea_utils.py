@@ -58,6 +58,12 @@ def compute_ks(prob, target):
     return get_ks(prob, target)
 
 
+def compute_topn_recall(prob, target, n):
+    threshold = np.percentile(prob, 1-n)
+    return target[prob>=threshold].sum() / target.sum()
+
+
+
 def train_by_cv(x, y, x_oot, y_oot, sss, clf, weight=None, **kw):
     pbar = tqdm(total=100)
     auc_train, auc_test, auc_oot = [], [], []
@@ -236,22 +242,44 @@ def get_describe(df):
     return sheet_2_tmp
 
 
-def woe_to_sql(woe_dict):
+def woe_to_sql(woe_dict, nan_value='nan'):
 
     seq = 'when {score_name} >= {lower} and {score_name} < {upper} then {value} \n'
-    seq_nan = 'when {score_name} is null then {value} \n'
+    if nan_value=='nan':
+        seq_nan = 'when {score_name} is null then {value} \n'
+    else:
+        seq_nan = 'when {score_name} = %s then {value} \n' % nan_value
+    seq_pinf = 'when {score_name} >= {lower} then {value} \n'
+    seq_ninf = 'when {score_name} < {upper} then {value} \n'
+    seq_else = 'else {value} '
     res_lst = []
     for f in woe_dict:
         f_lst = []
+        else_value = 0.0
         for threshold in woe_dict[f]:
             woe_value = woe_dict[f][threshold]
             threshold = threshold.replace('[', '').replace(' ', '').replace(')', '')
             left, right = threshold.split(',')
-            if left == 'nan':
+            if left == nan_value:
                 f_lst.append(seq_nan.format(score_name=f, value=woe_value))
+                else_value = woe_value
+            elif left == '-inf':
+                f_lst.append(seq_ninf.format(score_name=f, upper=right, value=woe_value))
+            elif right == 'inf':
+                f_lst.append(seq_pinf.format(score_name=f, lower=left, value=woe_value))
             else:
                 f_lst.append(seq.format(score_name=f, lower=left, upper=right, value=woe_value))
+        f_lst.append(seq_else.format(value=else_value))        
         f_str = 'case ' + ''.join(f_lst) + 'end as {woe_name}, \n'.format(woe_name=f+'_woe')
         res_lst.append(f_str)
     return ''.join(res_lst)
 
+
+def coef_to_sql(fn_lst, coef_lst, intercept):
+    _lst = []
+    iter_str = "{f_name}_woe * {coef:.6f}"
+    for i in range(len(fn_lst)):
+        _lst.append(iter_str.format(f_name=fn_lst[i], coef=coef_lst[i]))
+    res = ' + '.join(_lst)
+    res += "%.6f" % intercept
+    return res

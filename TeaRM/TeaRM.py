@@ -151,7 +151,7 @@ class Tea:
         nu_ratio = []
         most_common = []
         most_common_ratio = []
-        for i in x.columns:
+        for i in tqdm(x.columns):
             if len(x[i].value_counts()) == 0:
                 most_common.append(len(x[i]))
                 most_common_ratio.append(1.0)
@@ -214,6 +214,7 @@ class Tea:
         self.oot_ts = oot[self.datetime_feature]
 
         # ==== sheet 样本分析 ====
+        print("[INFO]Sample analysis...")
         sheet_sample = pd.DataFrame(
             {'时间跨度': [str(min(train[self.datetime_feature])) + '~' + str(max(train[self.datetime_feature])),
                       str(min(oot[self.datetime_feature])) + '~' + str(max(oot[self.datetime_feature]))],
@@ -226,7 +227,7 @@ class Tea:
         nu, nu_ratio, most_common, most_common_ratio = Tea.get_describe(X)
 
         # 变量初筛
-        print("Preliminary screening...")
+        print("[INFO]Preliminary screening...")
         sheet_2_tmp = pd.merge(pd.DataFrame(
             {'变量名称': list(X.columns), '空值个数': nu, '空值个数占比': nu_ratio, '最常值个数': most_common, '最常值个数占比': most_common_ratio}),
             pd.DataFrame(
@@ -445,7 +446,7 @@ class Tea:
                     inner_map = {}
                     _tmp = sheet_feature_bin_ins[sheet_feature_bin_ins['feature'] == f]
                     for index, row in _tmp.iterrows():
-                        inner_map['[%s, %s)' % (row.left, row.right)] = row.woe
+                        inner_map['[%.6f, %.6f)' % (row.left, row.right)] = row.woe
                     woe_dict[f] = inner_map
                 return woe_dict
             else:
@@ -464,16 +465,23 @@ def woe_transformer(df, woe_dict):
             if left == 'nan':
                 _df.loc[df[f].isnull(), f] = woe_value
             else:
-                _df.loc[(df[f] >= float(left)) & (df[f] < float(right)), f] = woe_value
+                try:
+                    _df.loc[(df[f] >= float(left)) & (df[f] < float(right)), f] = woe_value
+                except ValueError:
+                    _df.loc[df[f] == left, f] = woe_value
+                except TypeError:
+                    _df.loc[df[f] == left, f] = woe_value
     return _df
 
 
-def woe_todict(sheet_feature_bin_ins):
+def woe_todict(sheet_feature_bin_ins, nan_value=False):
     woe_dict = {}
     for f in [i for i in sheet_feature_bin_ins['feature'].unique()]:
         inner_map = {}
         _tmp = sheet_feature_bin_ins[sheet_feature_bin_ins['feature']==f]
         for index, row in _tmp.iterrows():
+            if nan_value:
+                inner_map['[%.6f, %.6f)' %(row.left, row.right-1)] = np.round(row.woe, 6)
             inner_map['[%.6f, %.6f)' %(row.left, row.right)] = np.round(row.woe, 6)
         woe_dict[f] = inner_map
     return woe_dict

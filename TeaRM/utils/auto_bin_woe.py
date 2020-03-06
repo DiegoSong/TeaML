@@ -118,7 +118,9 @@ class AutoBinWOE(object):
             point1 = stats.scoreatpercentile(res, i * (100 / self.bins))
             point2 = stats.scoreatpercentile(res, (i + 1) * (100 / self.bins))
             if i == self.bins-1:
-                point2 = point2 + 1e-1
+                point2 = np.inf
+            if i == 0:
+                point1 = -np.inf
             threshold[i] = [point1, point2]
         return threshold
 

@@ -6,4 +6,4 @@
 
 from . import utils
 from . import experiment
-from .TeaML import WOE, Tea
+from .TeaRM import WOE, Tea

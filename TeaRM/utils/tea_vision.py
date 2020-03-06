@@ -59,7 +59,7 @@ def monthly_bad_rate(data_set, time_col):
 
     plt.figure(figsize=(12, 12))
     plt.subplot(211)
-    plt.bar(yms, bad_rate_15, width=0.6)
+    plt.bar(yms, bad_rate, width=0.6)
     plt.title('bad rate')
 
     ax = plt.subplot(212)
